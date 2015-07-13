@@ -23,3 +23,7 @@ def setOfWords2Vec(vocabList,inputSet):
 			returnVec[vocabList.index(word)] = 1
 		else:	print("the word: %s is not in my Vocabulary!" % word)
 	return returnVec
+def trainNB0(trainMatrix,trainCategory):
+	numTrainDocs = len(trainMatrix)
+	numWords = len(trainMatrix[0])
+	
