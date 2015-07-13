@@ -75,16 +75,18 @@ def textParase(bigString):
 def spamTest():
 	docList = []; classList = [];fullText = []
 	for i in range(1,26):
-		wordList = textParase(open('email/spam/%d.txt' % i).read())
+		f = open('email/spam/%d.txt' % i)
+		wordList = textParase(f.read())
 		docList.append(wordList)
 		fullText.extend(wordList)
 		classList.append(1)
-		wordList = textParase(open('email/ham/%d.txt' % i).read())
+		f = open('email/ham/%d.txt' % i)
+		wordList = textParase(f.read())
 		docList.append(wordList)
 		fullText.extend(wordList)
 		classList.append(0)
 	vocabList = createVocabList(docList)
-	trainingSet = range(50); testSet = []
+	trainingSet = list(range(50)); testSet = []
 	for i in range(10):
 		randIndex = int(random.uniform(0,len(trainingSet)))
 		testSet.append(trainingSet[randIndex])
