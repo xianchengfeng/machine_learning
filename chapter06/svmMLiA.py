@@ -8,78 +8,20 @@ def loadDataSet(filename):
 		dataMat.append([float(lineArr[0]),float(lineArr[1])])
 		labelMat.append(float(lineArr[2]))
 	return dataMat,labelMat
-def selectJrand(i,m):    #i是第一alpha的下标，m是所有alpha的数目，只要函数值不等于输入值i，就会随机选择
-	j = i
-	while(j == i):
-		j = int(random.uniform(0,m))
-	return j 
+
 def clipAlpha(aj,H,L):
 	if aj > H:
 		aj = H
 	if aj < L:
 		aj = L
 	return aj
-def smoSimple(dataMatIn,classLabels,C,toler,maxIter):
-	dataMat = mat(dataMatIn); labelMat = mat(classLabels).transpose()
-	b = 0; m,n = shape(dataMat)
-	alphas = mat(zeros((m,1)))
-	iter = 0
-	while (iter < maxIter):
-		alphaPairChanged = 0
-		for i in range(m):
-			fXi = float(multiply(alphas,labelMat).T*(dataMat*dataMat[i,:].T)) + b
-			Ei = fXi - float(labelMat[i])
-			if((labelMat[i]*Ei < -toler) and (alphas[i] < C)) or ((labelMat[i]*Ei > toler) and (alphas[i] > 0)):
-				j = selectJrand(i,m)
-				fXj = float(multiply(alphas,labelMat).T*(dataMat*dataMat[j,:].T)) + b
-				Ej = fXj - float(labelMat[j])
-				alphaIold = alphas[i].copy();alphaJold = alphas[j].copy()
-				if (labelMat[i]!=labelMat[j]):
-					L = max(0, alphas[j] - alphas[i])
-					H = min(C, C+ alphas[j]-alphas[i])
-				else:
-					L = max(0, alphas[j] +alphas[i] -C)
-					H = min(C, alphas[j] + alphas[i])
-				if L==H: print("L==H"); continue
-				eta = 2.0*dataMat[i,:]*dataMat[j,:].T - dataMat[i,:]*dataMat[i,:].T -\
-					dataMat[j,:]*dataMat[j,:].T
-				if eta >= 0 :print("eta>=0");continue
-				alphas[j] -= labelMat[j]*(Ei - Ej)/eta
-				alphas[j] = clipAlpha(alphas[j],H,L)
-				if(abs(alphas[j]-alphaJold) < 0.00001): print("j no moving enough"); continue
-				alphas[i] += labelMat[j]*labelMat[i]*(alphaJold - alphas[j])
-				b1 = b - Ei- labelMat[i]*(alphas[i]-alphaIold)*\
-					dataMat[i,:]*dataMat[i,:].T - \
-					labelMat[j]*(alphas[j]-alphaJold)*\
-					dataMat[i,:]*dataMat[j,:].T 
-				b2 = b - Ej- labelMat[i]*(alphas[i]-alphaIold)*\
-					dataMat[i,:]*dataMat[j,:].T - \
-					labelMat[j]*(alphas[j]-alphaJold)*\
-					dataMat[j,:]*dataMat[j,:].T 
-				if (0 < alphas[i]) and (C > alphas[j]):	b=b1
-				elif (0<alphas[j]) and (C > alphas[j]):	b=b2
-				else: b = (b1 + b2)/2.0
-				alphaPairChanged += 1
-				print("iter:%d i:%d,pairs changed %d" % (iter,i,alphaPairChanged))
-		if (alphaPairChanged == 0): iter += 1
-		else:	iter = 0
-		print("iteration number: %d" % iter)
-	return b,alphas
-class optStruct:
-	def __init__(self,dataMatIn, classLabels, C, toler): 
-		self.X = dataMatIn
-		self.labelMat = classLabels
-		self.C = C
-		self.tol = toler
-		self.m = shape(dataMatIn)[0]
-		self.alphas = mat(zeros((self.m,1)))
-		self.b = 0
-		self.eCache = mat(zeros((self.m,2)))
-def calcEk(oS, k):
-	fXk = float(multiply(oS.alphas,oS.labelMat).T*\
-	(oS.X*oS.X[k,:].T)) + oS.b
-	Ek = fXk - float(oS.labelMat[k])
-	return Ek
+
+def selectJrand(i,m):    #i是第一alpha的下标，m是所有alpha的数目，只要函数值不等于输入值i，就会随机选择
+	j = i
+	while(j == i):
+		j = int(random.uniform(0,m))
+	return j 
+
 def selectJ(i, oS, Ei): 
 	maxK = -1; maxDeltaE = 0; Ej = 0
 	oS.eCache[i] = [1,Ei] 
@@ -96,46 +38,13 @@ def selectJ(i, oS, Ei):
 		j = selectJrand(i, oS.m)
 		Ej = calcEk(oS, j)
 	return j, Ej
+
 def updateEk(oS, k):
 	Ek = calcEk(oS, k)
 	oS.eCache[k] = [1,Ek]
-def innerL(i,oS):
-	Ei = calcEk(oS,i)
-	if ((oS.labelMat[i]*Ei < -oS.tol) and (oS.alphas[i]<oS.C)) or \
-		((oS.labelMat[i]*Ei > oS.tol) and (oS.alphas[i] > 0)):
-		j,Ej = selectJ(i, oS, Ei)
-		alphaIold = oS.alphas[i].copy(); alphaJold = oS.alphas[j].copy()
-		if (oS.labelMat[i] != oS.labelMat[j]):
-			L = max(0, oS.alphas[j] - oS.alphas[i])
-			H = min(oS.C, oS.C + oS.alphas[j] - oS.alphas[i])
-		else:
-			L = max(0, oS.alphas[j] + oS.alphas[i] - oS.C)
-			H = min(oS.C, oS.alphas[j] + oS.alphas[i])
-		if L==H: print("L==H"); return 0 
-		eta = 2.0 * oS.X[i,:]*oS.X[j,:].T - oS.X[i,:]*oS.X[i,:].T - \
-			oS.X[j,:]*oS.X[j,:].T
-		if eta >= 0: print ("eta>=0"); return 0
-		oS.alphas[j] -= oS.labelMat[j]*(Ei - Ej)/eta
-		oS.alphas[j] = clipAlpha(oS.alphas[j],H,L)
-		updateEk(oS,j)
-		if (abs(oS.alphas[j] - alphaJold) < 0.00001):
-			print ("j not moving enough"); return 0
-		oS.alphas[i] += oS.labelMat[j]*oS.labelMat[i]*\
-			(alphaJold - oS.alphas[j])
-		updateEk(oS, i)
-		b1 = oS.b - Ei- oS.labelMat[i]*(oS.alphas[i]-alphaIold)*\
-				oS.X[i,:]*oS.X[i,:].T - oS.labelMat[j]*\
-				(oS.alphas[j]-alphaJold)*oS.X[i,:]*oS.X[j,:].T
-		b2 = oS.b - Ej- oS.labelMat[i]*(oS.alphas[i]-alphaIold)*\
-				oS.X[i,:]*oS.X[j,:].T - oS.labelMat[j]*\
-				(oS.alphas[j]-alphaJold)*oS.X[j,:]*oS.X[j,:].T
-		if (0 < oS.alphas[i]) and (oS.C > oS.alphas[i]): oS.b = b1
-		elif (0 < oS.alphas[j]) and (oS.C > oS.alphas[j]): oS.b = b2
-		else: oS.b = (b1 + b2)/2.0
-		return 1
-	else: return 0
+
 def smoP(dataMatIn,classLabels,C,toler,maxIter,kTup=('lin',0)):
-	oS = optStruct(mat(dataMatIn),mat(classLabels).transpose(),C,toler)
+	oS = optStruct(mat(dataMatIn),mat(classLabels).transpose(),C,toler,kTup)
 	iter = 0
 	entireSet = True; alphaPairChanged = 0
 	while(iter < maxIter) and ((alphaPairChanged>0) or (entireSet)):
@@ -155,7 +64,8 @@ def smoP(dataMatIn,classLabels,C,toler,maxIter,kTup=('lin',0)):
 		if entireSet: entireSet = False
 		elif (alphaPairChanged == 0): entireSet = True
 		print("iteration number: %d" % iter)
-	return oS.b,oS.alphas
+	return oS.b,oS.alphas	
+
 def calcWs(alphas,dataArr,classLabels):
 	X = mat(dataArr); labelMat = mat(classLabels).transpose()
 	m,n = shape(X)
@@ -163,6 +73,7 @@ def calcWs(alphas,dataArr,classLabels):
 	for i in range(m):
 		w += multiply(alphas[i]*labelMat[i],X[i,:].T)
 	return w
+
 def kernelTrans(X,A,kTup):
 	m,n = shape(X)
 	K = mat(zeros((m,1)))
@@ -175,6 +86,7 @@ def kernelTrans(X,A,kTup):
 	else: raise NameError('Houston We Have a Problem -- \
 				That Kernel is not recognized')
 	return K
+
 class optStruct:
 	def __init__(self,dataMatIn, classLabels, C, toler, kTup):
 		self.X = dataMatIn
@@ -188,12 +100,14 @@ class optStruct:
 		self.K = mat(zeros((self.m,self.m)))
 		for i in range(self.m):
 			self.K[:,i] = kernelTrans(self.X, self.X[i,:], kTup)
-def calcEk1(oS, k):
+
+def calcEk(oS, k):
 	fXk = float(multiply(oS.alphas,oS.labelMat).T*\
 	oS.K[:,k] + oS.b)
 	Ek = fXk - float(oS.labelMat[k])
 	return Ek
-def innerL1(i,oS):
+
+def innerL(i,oS):
 	Ei = calcEk(oS,i)
 	if ((oS.labelMat[i]*Ei < -oS.tol) and (oS.alphas[i]<oS.C)) or \
 		((oS.labelMat[i]*Ei > oS.tol) and (oS.alphas[i] > 0)):
@@ -227,11 +141,80 @@ def innerL1(i,oS):
 		else: oS.b = (b1 + b2)/2.0
 		return 1
 	else: return 0
-def testRbf(k1=1.3):
-	dataArr,labelArr = loadDataSet('testSetRBF.txt')
+
+def testRbf(k1=0.1):
+	dataArr,labelArr = loadDataSet('testSetBRF.txt')
 	b,alphas = smoP(dataArr,labelArr,200,0.0001,10000,('rbf',k1))
 	dataMat = mat(dataArr);labelMat=mat(labelArr).transpose()
 	svInd = nonzero(alphas.A > 0)[0]
 	sVs = dataMat[svInd]
-	labelSV = labelmat[svInd]
-	
+	labelSV = labelMat[svInd]
+	print("there are %d Support Vectors" % shape(sVs)[0])
+	m,n = shape(dataMat)
+	errorCount = 0
+	for i in range(m):
+		kernelEval = kernelTrans(sVs,dataMat[i,:],('rbf',k1))
+		predict = kernelEval.T*multiply(labelSV,alphas[svInd]) + b
+		if sign(predict) != sign(labelArr[i]):	errorCount += 1
+	print("the training error rate is: %f" % (float(errorCount)/m))
+	dataArr,labelMat = loadDataSet('testSetBRF2.txt')
+	errorCount = 0
+	dataMat = mat(dataArr);labelMat = mat(labelArr).transpose()
+	m,n = shape(dataMat)
+	for i in range(m):
+		kernelEval = kernelTrans(sVs,dataMat[i,:],('rbf',k1))
+		predict = kernelEval.T*multiply(labelSV,alphas[svInd]) + b 
+		if sign(predict) != sign(labelArr[i]):	errorCount += 1
+	print("the test error rate is: %f" % (float(errorCount)/m))
+
+def img2vector(filename):
+	returnVect = zeros((1,1024))
+	fr = open(filename)
+	for i in range(32):
+		lineStr = fr.readline()
+		for j in range(32):
+			returnVect[0,32*i+j] = int(lineStr[j])
+	return returnVect
+
+def loadImages(dirName):
+	"""
+	由于这里的SVM只做二分类，所以除1和9以外的数字都被去掉了，1位+1,9位-1
+	"""
+	from os import listdir
+	hwLabels = []
+	trainingFileList = listdir(dirName)
+	m = len(trainingFileList)
+	trainingMat = zeros((m,1024))
+	for i in range(m):
+		fileNameStr = trainingFileList[i]
+		fileStr = fileNameStr.split('.')[0]
+		classNumStr = int(fileStr.split('_')[0])
+		if classNumStr == 9: hwLabels.append(-1)
+		else:	hwLabels.append(1)
+		trainingMat[i,:] = img2vector('%s\%s' % (dirName,fileNameStr))
+	return trainingMat,hwLabels
+
+def testDigits(kTup=("rbf",10)):
+	dataArr,labelArr = loadImages('trainingDigits')
+	b,alphas = smoP(dataArr,labelArr,200,0.0001,10000,kTup)
+	dataMat = mat(dataArr); labelMat = mat(labelArr).transpose()
+	svInd = nonzero(alphas.A>0)[0]
+	sVs = dataMat[svInd]
+	labelSV = labelMat[svInd]
+	print("there are %d Support Vectors" % shape(sVs)[0])
+	m,n = shape(dataMat)
+	errorCount = 0
+	for i in range(m):
+		kernelEval = kernelTrans(sVs,dataMat[i,:],kTup)
+		predict = kernelEval.T*multiply(labelSV,alphas[svInd]) + b
+		if sign(predict) != sign(labelArr[i]):	errorCount += 1
+	print("the training error rate is: %f" % (float(errorCount)/m))
+	dataArr,labelMat = loadImages('testDigits')
+	errorCount = 0
+	dataMat = mat(dataArr);labelMat = mat(labelArr).transpose()
+	m,n = shape(dataMat)
+	for i in range(m):
+		kernelEval = kernelTrans(sVs,dataMat[i,:],kTup)
+		predict = kernelEval.T*multiply(labelSV,alphas[svInd]) + b 
+		if sign(predict) != sign(labelArr[i]):	errorCount += 1
+	print("the test error rate is: %f" % (float(errorCount)/m))
